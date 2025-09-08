@@ -5,7 +5,6 @@
 ### 🚀 Как запустить проект на Windows (cmd)
 
 #### 📦 Требования
-- Java 21+
 - Git
 - Docker
 
@@ -16,14 +15,11 @@
    git clone --branch main --single-branch https://github.com/AnonUserG/sprint5_onlineStore_boot.git
 2. Запусти на машине Docker
 3. Перейди в папку с проектом
-4. Собери проект (тесты прогонятся автоматически)
-   ```bash
-   gradlew clean build
-5. Собери docker image
+4. Собери multistage docker image (тесты прогонятся автоматически)
    ```bash
    docker build -t online-store .
-6. Запусти контейнер
+5. Запусти контейнер
    ```bash
    docker run -p 8080:8080 online-store
 
-7. Перейди в браузере на [http://localhost:8080/](http://localhost:8080/)
+6. Перейди в браузере на [http://localhost:8080/](http://localhost:8080/)
