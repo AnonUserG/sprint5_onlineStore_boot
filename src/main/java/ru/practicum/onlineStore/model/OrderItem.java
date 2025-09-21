@@ -1,15 +1,16 @@
 package ru.practicum.onlineStore.model;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
 
-@Entity
-@Table(name = "order_items")
+@Table("order_items")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,17 +18,19 @@ import java.math.BigDecimal;
 public class OrderItem {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    private Order order;
+    private Long orderId;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    private Item item;
+    private Long itemId;
 
     private int count;
 
     private BigDecimal price;
 
+    @Transient
+    private Item item;
+
+    @Transient
+    private BigDecimal total;
 }

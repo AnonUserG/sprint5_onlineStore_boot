@@ -1,15 +1,15 @@
 package ru.practicum.onlineStore.model;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.relational.core.mapping.Table;
 
 import java.math.BigDecimal;
 
-@Entity
-@Table(name = "items")
+@Table("items")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,12 +17,10 @@ import java.math.BigDecimal;
 public class Item {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String title;
 
-    @Column(length = 2000)
     private String description;
 
     private String imgPath;
