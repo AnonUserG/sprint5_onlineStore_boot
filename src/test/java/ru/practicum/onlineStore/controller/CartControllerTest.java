@@ -1,12 +1,14 @@
 package ru.practicum.onlineStore.controller;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import reactor.core.publisher.Mono;
 import ru.practicum.onlineStore.model.Item;
 import ru.practicum.onlineStore.service.CartService;
@@ -14,13 +16,13 @@ import ru.practicum.onlineStore.service.CartService;
 import java.math.BigDecimal;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 
-@Tag("controllers")
 @WebFluxTest(CartController.class)
-public class CartControllerTest {
+class CartControllerTest {
 
     @Autowired
     private WebTestClient webTestClient;
@@ -28,84 +30,94 @@ public class CartControllerTest {
     @MockitoBean
     private CartService cartService;
 
-    @Test
-    @DisplayName("GET /cart/items возвращает cart view с атрибутами модели")
-    void showCart_ReturnsCartView() {
-        Item item = new Item();
-        item.setId(1L);
-        item.setTitle("Кружка Java");
+    private Item item1;
 
-        Map<Item, Integer> cart = Map.of(item, 2);
+    @BeforeEach
+    void setUp() {
+        item1 = Item.builder()
+                .id(1L)
+                .title("Кружка")
+                .description("Белая кружка")
+                .imgPath("mug.jpg")
+                .count(0)
+                .price(BigDecimal.valueOf(500))
+                .build();
 
-        when(cartService.getCart()).thenReturn(cart);
+        when(cartService.getCart()).thenReturn(Map.of(item1, 2));
+
+        when(cartService.getCartItemsCount()).thenReturn(Mono.just(Map.of(1L, 2)));
         when(cartService.getTotal()).thenReturn(Mono.just(BigDecimal.valueOf(1000)));
         when(cartService.isEmpty()).thenReturn(Mono.just(false));
 
-        webTestClient.get().uri("/cart/items")
+        when(cartService.addItem(any(Item.class))).thenReturn(Mono.empty());
+        when(cartService.removeOne(any(Item.class))).thenReturn(Mono.empty());
+        when(cartService.deleteItem(any(Item.class))).thenReturn(Mono.empty());
+    }
+
+    @Test
+    @DisplayName("GET /cart/items возвращает страницу корзины с товарами")
+    void showCart_ReturnsCartView() {
+        webTestClient.get()
+                .uri("/cart/items")
                 .exchange()
                 .expectStatus().isOk()
-                .expectBody()
-                .consumeWith(response -> {
-                    String body = new String(response.getResponseBodyContent());
-                    assert body.contains("Кружка Java");
-                    assert body.contains("1000");
-                });
+                .expectBody(String.class)
+                .consumeWith(response ->
+                        org.assertj.core.api.Assertions.assertThat(response.getResponseBody())
+                                .contains("cart") // имя вьюхи
+                                .contains("Кружка") // наш товар
+                );
+
+        verify(cartService).getCartItemsCount();
+        verify(cartService).getTotal();
+        verify(cartService).isEmpty();
     }
 
     @Test
-    @DisplayName("POST /cart/items/{id} с action=PLUS вызывает addItem()")
-    void updateCart_PlusAction() {
-        Item item = new Item();
-        item.setId(1L);
+    @DisplayName("POST /cart/items/{id} с action=PLUS")
+    void updateCart_PlusAction_CallsAddItem() {
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("action", "plus");
 
-        when(cartService.getCart()).thenReturn(Map.of(item, 1));
-
-        webTestClient.post().uri(uriBuilder -> uriBuilder
-                        .path("/cart/items/{id}")
-                        .queryParam("action", "PLUS")
-                        .build(1))
+        webTestClient.post()
+                .uri("/cart/items/{id}", 1L)
+                .bodyValue(formData)
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/cart/items");
 
-        verify(cartService).addItem(item);
+        verify(cartService).addItem(item1);
     }
 
     @Test
-    @DisplayName("POST /cart/items/{id} с action=MINUS вызывает removeOne()")
-    void updateCart_MinusAction() {
-        Item item = new Item();
-        item.setId(1L);
+    @DisplayName("POST /cart/items/{id} с action=MINUS")
+    void updateCart_MinusAction_CallsRemoveOne() {
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("action", "minus");
 
-        when(cartService.getCart()).thenReturn(Map.of(item, 1));
-
-        webTestClient.post().uri(uriBuilder -> uriBuilder
-                        .path("/cart/items/{id}")
-                        .queryParam("action", "MINUS")
-                        .build(1))
+        webTestClient.post()
+                .uri("/cart/items/{id}", 1L)
+                .bodyValue(formData)
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/cart/items");
 
-        verify(cartService).removeOne(item);
+        verify(cartService).removeOne(item1);
     }
 
     @Test
-    @DisplayName("POST /cart/items/{id} с action=DELETE вызывает deleteItem()")
-    void updateCart_DeleteAction() {
-        Item item = new Item();
-        item.setId(1L);
+    @DisplayName("POST /cart/items/{id} с action=DELETE")
+    void updateCart_DeleteAction_CallsDeleteItem() {
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("action", "delete");
 
-        when(cartService.getCart()).thenReturn(Map.of(item, 1));
-
-        webTestClient.post().uri(uriBuilder -> uriBuilder
-                        .path("/cart/items/{id}")
-                        .queryParam("action", "DELETE")
-                        .build(1))
+        webTestClient.post()
+                .uri("/cart/items/{id}", 1L)
+                .bodyValue(formData)
                 .exchange()
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/cart/items");
 
-        verify(cartService).deleteItem(item);
+        verify(cartService).deleteItem(item1);
     }
 }

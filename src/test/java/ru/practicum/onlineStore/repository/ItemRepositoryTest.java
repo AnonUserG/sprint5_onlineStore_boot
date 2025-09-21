@@ -1,23 +1,32 @@
 package ru.practicum.onlineStore.repository;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.context.jdbc.Sql;
+import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import reactor.core.publisher.Mono;
 import ru.practicum.onlineStore.model.Item;
-import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
+import reactor.test.StepVerifier;
 
-@DataJpaTest
-@Sql(statements = "DELETE FROM items", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+
+
+@DataR2dbcTest
+@ActiveProfiles("test")
 public class ItemRepositoryTest {
 
     @Autowired
     private ItemRepository itemRepository;
+
+    @BeforeEach
+    void cleanDb() {
+        itemRepository.deleteAll().block();
+    }
 
     @Test
     @DisplayName("Сохранение и поиск по id")
@@ -27,13 +36,14 @@ public class ItemRepositoryTest {
         item.setDescription("Керамическая кружка с логотипом Spring");
         item.setPrice(BigDecimal.valueOf(500));
 
-        Item saved = itemRepository.save(item);
+        Mono<Item> savedMono = itemRepository.save(item);
 
-        Optional<Item> found = itemRepository.findById(saved.getId());
-
-        assertThat(found).isPresent();
-        assertThat(found.get().getTitle()).isEqualTo("Чашка Spring");
-        assertThat(found.get().getPrice()).isEqualByComparingTo("500");
+        StepVerifier.create(savedMono.flatMap(saved ->
+                        itemRepository.findById(saved.getId())))
+                .expectNextMatches(found ->
+                        found.getTitle().equals("Чашка Spring") &&
+                                found.getPrice().compareTo(BigDecimal.valueOf(500)) == 0)
+                .verifyComplete();
     }
 
     @Test
@@ -47,14 +57,14 @@ public class ItemRepositoryTest {
         item2.setTitle("Ручка");
         item2.setPrice(BigDecimal.valueOf(50));
 
-        itemRepository.saveAll(List.of(item1, item2));
+        Mono<Void> saveAllMono = itemRepository.saveAll(List.of(item1, item2)).then();
 
-        List<Item> items = itemRepository.findAll();
-
-        assertThat(items).hasSize(2);
-        assertThat(items)
-                .extracting(Item::getTitle)
-                .containsExactlyInAnyOrder("Тетрадь", "Ручка");
+        StepVerifier.create(saveAllMono.thenMany(itemRepository.findAll()).collectList())
+                .expectNextMatches(items ->
+                        items.size() == 2 &&
+                                items.stream().map(Item::getTitle).toList().containsAll(List.of("Тетрадь", "Ручка"))
+                )
+                .verifyComplete();
     }
 
     @Test
@@ -64,12 +74,12 @@ public class ItemRepositoryTest {
         item.setTitle("Стикеры");
         item.setPrice(BigDecimal.valueOf(30));
 
-        Item saved = itemRepository.save(item);
-        Long id = saved.getId();
+        Mono<Item> savedMono = itemRepository.save(item);
 
-        itemRepository.deleteById(id);
-
-        Optional<Item> found = itemRepository.findById(id);
-        assertThat(found).isEmpty();
+        StepVerifier.create(savedMono.flatMap(saved ->
+                        itemRepository.deleteById(saved.getId())
+                                .then(itemRepository.findById(saved.getId()))))
+                .expectNextCount(0) // Ожидаем, что элемент не найден
+                .verifyComplete();
     }
 }

@@ -6,16 +6,20 @@ import org.junit.jupiter.api.Test;
 import ru.practicum.onlineStore.model.Item;
 
 import java.math.BigDecimal;
-import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+
+
+import reactor.test.StepVerifier;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
 
 public class CartServiceTest {
 
     private CartService cartService;
 
-    Item item1;
-    Item item2;
+    private Item item1;
+    private Item item2;
 
     @BeforeEach
     void setUp() {
@@ -35,73 +39,86 @@ public class CartServiceTest {
     @Test
     @DisplayName("Добавление товаров в корзину")
     void addItem_IncreasesCount() {
-        cartService.addItem(item1);
-        cartService.addItem(item1);
+        StepVerifier.create(cartService.addItem(item1).then(cartService.addItem(item1)))
+                .verifyComplete();
 
-        assertEquals(2, cartService.getCart().get(item1));
+        StepVerifier.create(cartService.getCartItemsCount())
+                .assertNext(map -> assertThat(map.get(item1.getId())).isEqualTo(2))
+                .verifyComplete();
     }
 
     @Test
     @DisplayName("Удаление одного экземпляра товара")
     void removeOne_DecreasesCountOrRemoves() {
-        cartService.addItem(item1);
-        cartService.addItem(item1);
-        cartService.removeOne(item1);
+        StepVerifier.create(cartService.addItem(item1).then(cartService.addItem(item1)))
+                .verifyComplete();
 
-        assertEquals(1, cartService.getCart().get(item1));
+        StepVerifier.create(cartService.removeOne(item1))
+                .verifyComplete();
 
-        cartService.removeOne(item1);
-        assertFalse(cartService.getCart().containsKey(item1));
+        StepVerifier.create(cartService.getCartItemsCount())
+                .assertNext(map -> assertThat(map.get(item1.getId())).isEqualTo(1))
+                .verifyComplete();
+
+        StepVerifier.create(cartService.removeOne(item1))
+                .verifyComplete();
+
+        StepVerifier.create(cartService.getCartItemsCount())
+                .assertNext(map -> assertThat(map).doesNotContainKey(item1.getId()))
+                .verifyComplete();
     }
 
     @Test
     @DisplayName("Полное удаление товара")
     void deleteItem_RemovesItem() {
-        cartService.addItem(item1);
-        cartService.deleteItem(item1);
+        StepVerifier.create(cartService.addItem(item1))
+                .verifyComplete();
 
-        assertFalse(cartService.getCart().containsKey(item1));
+        StepVerifier.create(cartService.deleteItem(item1))
+                .verifyComplete();
+
+        StepVerifier.create(cartService.getCartItemsCount())
+                .assertNext(map -> assertThat(map).doesNotContainKey(item1.getId()))
+                .verifyComplete();
     }
 
     @Test
     @DisplayName("Очистка корзины")
     void clear_RemovesAllItems() {
-        cartService.addItem(item1);
-        cartService.addItem(item2);
-        cartService.clear();
+        StepVerifier.create(cartService.addItem(item1).then(cartService.addItem(item2)))
+                .verifyComplete();
 
-        assertTrue(cartService.getCart().isEmpty());
+        StepVerifier.create(cartService.clear())
+                .verifyComplete();
+
+        StepVerifier.create(cartService.isEmpty())
+                .assertNext(empty -> assertThat(empty).isTrue())
+                .verifyComplete();
     }
 
     @Test
     @DisplayName("Подсчет общей суммы корзины")
     void getTotal_CalculatesCorrectly() {
-        cartService.addItem(item1);
-        cartService.addItem(item2);
-        cartService.addItem(item2);
-        BigDecimal total = cartService.getTotal();
+        StepVerifier.create(cartService.addItem(item1).then(cartService.addItem(item2)).then(cartService.addItem(item2)))
+                .verifyComplete();
 
-        assertEquals(BigDecimal.valueOf(2900), total);
+        StepVerifier.create(cartService.getTotal())
+                .assertNext(total -> assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(2900)))
+                .verifyComplete();
     }
 
     @Test
     @DisplayName("Проверка пустоты корзины")
     void isEmpty_ReturnsCorrectValue() {
-        assertTrue(cartService.isEmpty());
-        cartService.addItem(item1);
-        assertFalse(cartService.isEmpty());
-    }
+        StepVerifier.create(cartService.isEmpty())
+                .assertNext(empty -> assertThat(empty).isTrue())
+                .verifyComplete();
 
-    @Test
-    @DisplayName("Получение количества товаров по ID")
-    void getCartItemsCount_ReturnsCorrectMap() {
-        cartService.addItem(item1);
-        cartService.addItem(item2);
-        cartService.addItem(item2);
+        StepVerifier.create(cartService.addItem(item1))
+                .verifyComplete();
 
-        Map<Long, Integer> counts = cartService.getCartItemsCount();
-
-        assertEquals(1, counts.get(item1.getId()));
-        assertEquals(2, counts.get(item2.getId()));
+        StepVerifier.create(cartService.isEmpty())
+                .assertNext(empty -> assertThat(empty).isFalse())
+                .verifyComplete();
     }
 }

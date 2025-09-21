@@ -1,18 +1,22 @@
 package ru.practicum.onlineStore.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 import ru.practicum.onlineStore.model.Item;
 import ru.practicum.onlineStore.repository.ItemRepository;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
+
 
 @ExtendWith(MockitoExtension.class)
 public class ItemServiceTest {
@@ -23,63 +27,67 @@ public class ItemServiceTest {
     @Mock
     private ItemRepository itemRepository;
 
-    @Test
-    @DisplayName("findAll возвращает список всех товаров")
-    void findAll_ReturnsAllItems() {
-        Item item1 = new Item();
+    private Item item1;
+    private Item item2;
+
+    @BeforeEach
+    void setUp() {
+        item1 = new Item();
         item1.setId(1L);
-        item1.setTitle("Item 1");
+        item1.setTitle("Кружка");
+        item1.setPrice(BigDecimal.valueOf(500));
 
-        Item item2 = new Item();
+        item2 = new Item();
         item2.setId(2L);
-        item2.setTitle("Item 2");
-
-        when(itemRepository.findAll()).thenReturn(List.of(item1, item2));
-
-        List<Item> items = itemService.findAll();
-
-        assertThat(items).hasSize(2).contains(item1, item2);
-        verify(itemRepository, times(1)).findAll();
+        item2.setTitle("Футболка");
+        item2.setPrice(BigDecimal.valueOf(1200));
     }
 
     @Test
-    @DisplayName("findById возвращает товар по ID")
+    @DisplayName("findAll возвращает все товары")
+    void findAll_ReturnsAllItems() {
+        when(itemRepository.findAll()).thenReturn(Flux.fromIterable(List.of(item1, item2)));
+
+        StepVerifier.create(itemService.findAll())
+                .expectNext(item1)
+                .expectNext(item2)
+                .verifyComplete();
+
+        verify(itemRepository).findAll();
+    }
+
+    @Test
+    @DisplayName("findById возвращает товар по id")
     void findById_ReturnsItem() {
-        Item item = new Item();
-        item.setId(1L);
-        item.setTitle("Item 1");
+        when(itemRepository.findById(1L)).thenReturn(Mono.just(item1));
 
-        when(itemRepository.findById(1L)).thenReturn(Optional.of(item));
+        StepVerifier.create(itemService.findById(1L))
+                .expectNext(item1)
+                .verifyComplete();
 
-        Optional<Item> result = itemService.findById(1L);
-
-        assertThat(result).isPresent().contains(item);
-        verify(itemRepository, times(1)).findById(1L);
+        verify(itemRepository).findById(1L);
     }
 
     @Test
     @DisplayName("save сохраняет товар")
     void save_SavesItem() {
-        Item item = new Item();
-        item.setTitle("New Item");
+        when(itemRepository.save(any(Item.class))).thenReturn(Mono.just(item1));
 
-        when(itemRepository.save(item)).thenReturn(item);
+        StepVerifier.create(itemService.save(item1))
+                .expectNext(item1)
+                .verifyComplete();
 
-        Item saved = itemService.save(item);
-
-        assertThat(saved).isEqualTo(item);
-        verify(itemRepository, times(1)).save(item);
+        verify(itemRepository).save(item1);
     }
 
     @Test
-    @DisplayName("delete удаляет товар по ID")
+    @DisplayName("delete удаляет товар по id")
     void delete_DeletesItem() {
-        Long itemId = 1L;
+        when(itemRepository.deleteById(1L)).thenReturn(Mono.empty());
 
-        doNothing().when(itemRepository).deleteById(itemId);
+        StepVerifier.create(itemService.delete(1L))
+                .verifyComplete();
 
-        itemService.delete(itemId);
-
-        verify(itemRepository, times(1)).deleteById(itemId);
+        verify(itemRepository).deleteById(1L);
     }
 }

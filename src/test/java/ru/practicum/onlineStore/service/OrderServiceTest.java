@@ -7,23 +7,27 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.test.StepVerifier;
 import ru.practicum.onlineStore.model.Item;
 import ru.practicum.onlineStore.model.Order;
 import ru.practicum.onlineStore.model.OrderItem;
+import ru.practicum.onlineStore.repository.OrderItemRepository;
 import ru.practicum.onlineStore.repository.OrderRepository;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class OrderServiceTest {
+
     @Mock
     private OrderRepository orderRepository;
+
+    @Mock
+    private OrderItemRepository orderItemRepository;
 
     @InjectMocks
     private OrderService orderService;
@@ -36,17 +40,11 @@ public class OrderServiceTest {
         item1 = new Item();
         item1.setId(1L);
         item1.setTitle("Кружка");
-        item1.setDescription("Белая кружка");
-        item1.setImgPath("mug.jpg");
-        item1.setCount(0);
         item1.setPrice(BigDecimal.valueOf(500));
 
         item2 = new Item();
         item2.setId(2L);
         item2.setTitle("Футболка");
-        item2.setDescription("Черная футболка");
-        item2.setImgPath("tshirt.jpg");
-        item2.setCount(0);
         item2.setPrice(BigDecimal.valueOf(1200));
     }
 
@@ -56,11 +54,12 @@ public class OrderServiceTest {
         Order order = new Order();
         order.setId(1L);
 
-        when(orderRepository.save(any(Order.class))).thenReturn(order);
+        when(orderRepository.save(any(Order.class))).thenReturn(Mono.just(order));
 
-        Order saved = orderService.save(new Order());
+        StepVerifier.create(orderService.save(new Order()))
+                .expectNextMatches(saved -> saved.getId() == 1L)
+                .verifyComplete();
 
-        assertThat(saved.getId()).isEqualTo(1L);
         verify(orderRepository, times(1)).save(any(Order.class));
     }
 
@@ -72,11 +71,12 @@ public class OrderServiceTest {
         Order order2 = new Order();
         order2.setId(2L);
 
-        when(orderRepository.findAll()).thenReturn(List.of(order1, order2));
+        when(orderRepository.findAll()).thenReturn(Flux.just(order1, order2));
 
-        List<Order> orders = orderService.findAll();
-
-        assertThat(orders).containsExactlyInAnyOrder(order1, order2);
+        StepVerifier.create(orderService.findAll())
+                .expectNext(order1)
+                .expectNext(order2)
+                .verifyComplete();
     }
 
     @Test
@@ -85,12 +85,11 @@ public class OrderServiceTest {
         Order order = new Order();
         order.setId(1L);
 
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+        when(orderRepository.findById(1L)).thenReturn(Mono.just(order));
 
-        Optional<Order> found = orderService.findById(1L);
-
-        assertThat(found).isPresent();
-        assertThat(found.get().getId()).isEqualTo(1L);
+        StepVerifier.create(orderService.findById(1L))
+                .expectNextMatches(found -> found.getId() == 1L)
+                .verifyComplete();
     }
 
     @Test
@@ -107,20 +106,18 @@ public class OrderServiceTest {
         oi2.setPrice(item2.getPrice());
 
         List<OrderItem> orderItems = List.of(oi1, oi2);
-
         Order savedOrder = new Order();
         savedOrder.setId(1L);
-        savedOrder.getItems().addAll(orderItems);
 
-        when(orderRepository.save(any(Order.class))).thenReturn(savedOrder);
+        when(orderRepository.save(any(Order.class))).thenReturn(Mono.just(savedOrder));
+        when(orderItemRepository.save(any(OrderItem.class)))
+                .thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
-        Order order = orderService.createOrder(orderItems);
-
-        assertNotNull(order.getId());
-        assertEquals(2, order.getItems().size());
-        assertTrue(order.getItems().stream().anyMatch(i -> i.getItem().equals(item1)));
-        assertTrue(order.getItems().stream().anyMatch(i -> i.getItem().equals(item2)));
+        StepVerifier.create(orderService.createOrder(Flux.fromIterable(orderItems)))
+                .expectNextMatches(order -> order.getId() == 1L)
+                .verifyComplete();
 
         verify(orderRepository, times(1)).save(any(Order.class));
+        verify(orderItemRepository, times(2)).save(any(OrderItem.class));
     }
 }
