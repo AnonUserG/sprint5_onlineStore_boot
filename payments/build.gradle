@@ -10,6 +10,10 @@ openApiGenerate {
     inputSpec.set("${rootDir}/api/payment-openapi.yml")
     outputDir.set(layout.buildDirectory.dir("generated").get().asFile.toString())
     library.set("spring-boot")
+
+    configOptions = [
+            useJakartaEe: "true"
+    ]
 }
 sourceSets {
     main {
@@ -19,7 +23,7 @@ sourceSets {
     }
 }
 tasks.named("compileJava") {
-    dependsOn openApiGenerate
+    dependsOn(tasks.named("openApiGenerate"))
 }
 
 
@@ -43,8 +47,10 @@ jar {
 dependencies {
     implementation "org.springframework.boot:spring-boot-starter-webflux"
     implementation "org.springframework.boot:spring-boot-starter-validation"
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui:2.2.0")
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "org.springdoc:springdoc-openapi-starter-webflux-ui:2.2.0"
+    implementation "jakarta.annotation:jakarta.annotation-api:2.1.1"
+    implementation "org.openapitools:jackson-databind-nullable:0.2.6"
     compileOnly "org.projectlombok:lombok"
     annotationProcessor "org.projectlombok:lombok"
     testImplementation "org.springframework.boot:spring-boot-starter-test"

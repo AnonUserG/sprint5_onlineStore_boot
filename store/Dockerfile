@@ -10,6 +10,7 @@ COPY gradle gradle
 COPY settings.gradle build.gradle ./
 COPY store/build.gradle store/build.gradle
 COPY payments/build.gradle payments/build.gradle
+COPY api api
 
 # Скачиваем зависимости чтобы кэшировались
 RUN chmod +x gradlew
