@@ -1,9 +1,11 @@
 package ru.practicum.onlineStore.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
+import org.springframework.data.redis.core.ReactiveValueOperations;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -51,10 +53,10 @@ public class ItemService {
 
 
     public Mono<Item> findById(Long id) {
-        return redisTemplate.opsForValue().get("items:" + id)
-                .cast(String.class)
-                .flatMap(json -> {
+        return redisTemplate.opsForValue().get("items:" + id) // возвращает Object
+                .flatMap(obj -> {
                     try {
+                        String json = objectMapper.writeValueAsString(obj);
                         Item item = objectMapper.readValue(json, Item.class);
                         return Mono.just(item);
                     } catch (Exception e) {
@@ -65,16 +67,15 @@ public class ItemService {
                         itemRepository.findById(id)
                                 .flatMap(item -> {
                                     try {
-                                        String json = objectMapper.writeValueAsString(item);
-                                        return redisTemplate.opsForValue()
-                                                .set("items:" + id, json, Duration.ofMinutes(10))
-                                                .thenReturn(item);
-                                    } catch (Exception e) {
-                                        return Mono.just(item);
-                                    }
+                                        redisTemplate.opsForValue()
+                                                .set("items:" + item.getId(), item, Duration.ofMinutes(10))
+                                                .subscribe();
+                                    } catch (Exception ignored) {}
+                                    return Mono.just(item);
                                 })
                 );
     }
+
 
 
     public Mono<Item> save(Item item) {

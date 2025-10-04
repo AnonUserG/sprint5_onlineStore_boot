@@ -1,6 +1,6 @@
 # Online store
 
-Витрина интернет-магазина на основе Spring Boot, reactive stack.
+Витрина интернет-магазина на основе Spring Boot, Redis, reactive stack.
 
 ### 🚀 Как запустить проект на Windows (cmd)
 
@@ -9,17 +9,19 @@
 - Docker
 
 #### 📁 Запуск
+!!! VPN может помешать подняться проекту через compose
 
-1. Клонируй ветку reactive_stack из репозитория используя git bash
+1. Клонируй ветку multi-project-payments из репозитория используя git bash
    ```bash
-   git clone --branch reactive_stack --single-branch https://github.com/AnonUserG/sprint5_onlineStore_boot.git
+   git clone --branch multi-project-payments --single-branch https://github.com/AnonUserG/sprint5_onlineStore_boot.git
 2. Запусти на машине Docker
 3. Перейди в папку с проектом
-4. Собери multistage docker image (тесты прогонятся автоматически)
+4. Подними проект используя (тесты прогонятся автоматически)
    ```bash
-   docker build -t online-store .
-5. Запусти контейнер
-   ```bash
-   docker run -p 8080:8080 online-store
+   docker compose up --build
 
-6. Перейди в браузере на [http://localhost:8080/](http://localhost:8080/)
+5. Перейди в браузере на [http://localhost:8080/](http://localhost:8080/)
+
+Опционально можно подключиться к запущенному Redis и посмотреть что там лежит командой 'keys *'
+   ```bash
+   docker exec -it redis redis-cli

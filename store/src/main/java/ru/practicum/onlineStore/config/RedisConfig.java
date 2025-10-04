@@ -25,5 +25,4 @@ public class RedisConfig {
         return new ReactiveRedisTemplate<>(factory, serializationContext);
     }
 
-
 }
