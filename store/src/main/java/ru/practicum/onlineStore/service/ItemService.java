@@ -1,11 +1,17 @@
 package ru.practicum.onlineStore.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.practicum.onlineStore.model.Item;
 import ru.practicum.onlineStore.repository.ItemRepository;
+
+import java.time.Duration;
+import java.util.List;
 
 
 @Service
@@ -13,21 +19,80 @@ import ru.practicum.onlineStore.repository.ItemRepository;
 public class ItemService {
 
     private final ItemRepository itemRepository;
+    private final ReactiveRedisTemplate<String, Object> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     public Flux<Item> findAll() {
-        return itemRepository.findAll();
+        return redisTemplate.opsForValue().get("items:all")
+                .cast(String.class) // получаем JSON
+                .flatMapMany(json -> {
+                    try {
+                        List<Item> items = objectMapper.readValue(json, new TypeReference<List<Item>>() {});
+                        return Flux.fromIterable(items);
+                    } catch (Exception e) {
+                        return Flux.empty();
+                    }
+                })
+                .switchIfEmpty(
+                        itemRepository.findAll()
+                                .collectList()
+                                .flatMapMany(list -> {
+                                    try {
+                                        String json = objectMapper.writeValueAsString(list);
+                                        return redisTemplate.opsForValue()
+                                                .set("items:all", json, Duration.ofMinutes(10))
+                                                .thenMany(Flux.fromIterable(list));
+                                    } catch (Exception e) {
+                                        return Flux.fromIterable(list);
+                                    }
+                                })
+                );
     }
+
 
     public Mono<Item> findById(Long id) {
-        return itemRepository.findById(id);
+        return redisTemplate.opsForValue().get("items:" + id)
+                .cast(String.class)
+                .flatMap(json -> {
+                    try {
+                        Item item = objectMapper.readValue(json, Item.class);
+                        return Mono.just(item);
+                    } catch (Exception e) {
+                        return Mono.empty();
+                    }
+                })
+                .switchIfEmpty(
+                        itemRepository.findById(id)
+                                .flatMap(item -> {
+                                    try {
+                                        String json = objectMapper.writeValueAsString(item);
+                                        return redisTemplate.opsForValue()
+                                                .set("items:" + id, json, Duration.ofMinutes(10))
+                                                .thenReturn(item);
+                                    } catch (Exception e) {
+                                        return Mono.just(item);
+                                    }
+                                })
+                );
     }
+
 
     public Mono<Item> save(Item item) {
-        return itemRepository.save(item);
+        return itemRepository.save(item)
+                .flatMap(saved -> {
+                    String key = "items:" + saved.getId();
+                    return redisTemplate.opsForValue().set(key, saved, Duration.ofMinutes(10))
+                            .then(redisTemplate.delete("items:all"))
+                            .thenReturn(saved);
+                });
     }
 
+
     public Mono<Void> delete(Long id) {
-        return itemRepository.deleteById(id);
+        return itemRepository.deleteById(id)
+                .then(redisTemplate.delete("items:" + id))
+                .then(redisTemplate.delete("items:all"))
+                .then();
     }
 
 }
