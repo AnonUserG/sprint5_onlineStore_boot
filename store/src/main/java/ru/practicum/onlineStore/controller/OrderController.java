@@ -51,41 +51,39 @@ public class OrderController {
                                     .build())
                             .collect(Collectors.toList());
 
-                    return orderService.createOrder(Flux.fromIterable(orderItems))
-                            .map(order -> Map.entry(order, orderItems)); // передаем order и orderItems дальше
-                })
-                .flatMap(entry -> {
-                    Order order = entry.getKey();
-                    List<OrderItem> orderItems = entry.getValue();
-
                     BigDecimal amount = orderItems.stream()
                             .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getCount())))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                     PaymentRequest paymentRequest = new PaymentRequest();
-                    paymentRequest.setAccountId("defaultAccount"); // заменить на реальный accountId
-                    paymentRequest.setOrderId(String.valueOf(order.getId()));
+                    paymentRequest.setAccountId("defaultAccount");
+                    paymentRequest.setOrderId("temp_" + System.currentTimeMillis()); // временный ID
                     paymentRequest.setAmount(amount.doubleValue());
 
                     return defaultApi.apiPaymentsPayPost(paymentRequest)
                             .flatMap(paymentResponse -> {
                                 if (Boolean.TRUE.equals(paymentResponse.getSuccess())) {
-                                    return cartService.clear()
-                                            .thenReturn("redirect:/orders/" + order.getId() + "?newOrder=true");
+                                    // Если оплата прошла - создаем и сохраняем заказ
+                                    return orderService.createOrder(Flux.fromIterable(orderItems))
+                                            .flatMap(savedOrder ->
+                                                    cartService.clear()
+                                                            .thenReturn("redirect:/orders/" + savedOrder.getId() + "?newOrder=true")
+                                            );
                                 } else {
+                                    // Если оплата не прошла - НЕ создаем заказ
                                     model.addAttribute("errorTitle", "Ошибка оплаты");
-                                    model.addAttribute("errorMessage", paymentResponse.getError() != null ? paymentResponse.getError() : "Платеж не прошел: сумма больше лимита");
-                                    return Mono.just("error/error"); // <- возвращаем страницу ошибки
+                                    model.addAttribute("errorMessage", paymentResponse.getError() != null ? paymentResponse.getError() : "Платеж не прошел");
+                                    return Mono.just("error/error");
                                 }
-                            })
-                            .onErrorResume(WebClientResponseException.class, ex -> {
-                                if (ex.getStatusCode() == HttpStatus.PAYMENT_REQUIRED) {
-                                    model.addAttribute("errorTitle", "Ошибка оплаты");
-                                    model.addAttribute("errorMessage", "Платеж не прошел: сумма больше лимита");
-                                    return Mono.just("error/error"); // <- возвращаем страницу ошибки
-                                }
-                                return Mono.error(ex); // все остальные ошибки
                             });
+                })
+                .onErrorResume(WebClientResponseException.class, ex -> {
+                    if (ex.getStatusCode() == HttpStatus.PAYMENT_REQUIRED) {
+                        model.addAttribute("errorTitle", "Ошибка оплаты");
+                        model.addAttribute("errorMessage", "Платеж не прошел: сумма больше лимита");
+                        return Mono.just("error/error");
+                    }
+                    return Mono.error(ex);
                 })
                 .onErrorResume(ResponseStatusException.class, ex -> {
                     log.error("Ошибка при оплате: ", ex);
