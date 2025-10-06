@@ -23,6 +23,7 @@ public class Order {
     @Id
     private Long id;
 
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Transient

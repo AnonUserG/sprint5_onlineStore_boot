@@ -1,9 +1,17 @@
 package ru.practicum.onlineStore.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.openapitools.client.api.DefaultApi;
+import org.openapitools.client.model.PaymentRequest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.web.reactive.result.view.Rendering;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import ru.practicum.onlineStore.model.Order;
@@ -21,15 +29,18 @@ import java.util.stream.Collectors;
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/orders")
+@Slf4j
 public class OrderController {
 
     private final OrderService orderService;
     private final CartService cartService;
     private final OrderItemRepository orderItemRepository;
     private final ItemRepository itemRepository;
+    @Autowired
+    private DefaultApi defaultApi;
 
     @PostMapping("/buy")
-    public Mono<String> buy() {
+    public Mono<String> buy(Model model) {
         return Mono.fromSupplier(cartService::getCart)
                 .flatMap(cart -> {
                     List<OrderItem> orderItems = cart.entrySet().stream()
@@ -39,11 +50,49 @@ public class OrderController {
                                     .price(e.getKey().getPrice())
                                     .build())
                             .collect(Collectors.toList());
-                    return orderService.createOrder(Flux.fromIterable(orderItems));
+
+                    return orderService.createOrder(Flux.fromIterable(orderItems))
+                            .map(order -> Map.entry(order, orderItems)); // передаем order и orderItems дальше
                 })
-                .flatMap(order -> cartService.clear().thenReturn(order))
-                .map(order -> "redirect:/orders/" + order.getId() + "?newOrder=true");
+                .flatMap(entry -> {
+                    Order order = entry.getKey();
+                    List<OrderItem> orderItems = entry.getValue();
+
+                    BigDecimal amount = orderItems.stream()
+                            .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getCount())))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    PaymentRequest paymentRequest = new PaymentRequest();
+                    paymentRequest.setAccountId("defaultAccount"); // заменить на реальный accountId
+                    paymentRequest.setOrderId(String.valueOf(order.getId()));
+                    paymentRequest.setAmount(amount.doubleValue());
+
+                    return defaultApi.apiPaymentsPayPost(paymentRequest)
+                            .flatMap(paymentResponse -> {
+                                if (Boolean.TRUE.equals(paymentResponse.getSuccess())) {
+                                    return cartService.clear()
+                                            .thenReturn("redirect:/orders/" + order.getId() + "?newOrder=true");
+                                } else {
+                                    model.addAttribute("errorTitle", "Ошибка оплаты");
+                                    model.addAttribute("errorMessage", paymentResponse.getError() != null ? paymentResponse.getError() : "Платеж не прошел: сумма больше лимита");
+                                    return Mono.just("error/error"); // <- возвращаем страницу ошибки
+                                }
+                            })
+                            .onErrorResume(WebClientResponseException.class, ex -> {
+                                if (ex.getStatusCode() == HttpStatus.PAYMENT_REQUIRED) {
+                                    model.addAttribute("errorTitle", "Ошибка оплаты");
+                                    model.addAttribute("errorMessage", "Платеж не прошел: сумма больше лимита");
+                                    return Mono.just("error/error"); // <- возвращаем страницу ошибки
+                                }
+                                return Mono.error(ex); // все остальные ошибки
+                            });
+                })
+                .onErrorResume(ResponseStatusException.class, ex -> {
+                    log.error("Ошибка при оплате: ", ex);
+                    return Mono.just("error/error");
+                });
     }
+
 
     @GetMapping
     public Mono<Rendering> listOrders() {
@@ -54,7 +103,6 @@ public class OrderController {
                                         itemRepository.findById(orderItem.getItemId())
                                                 .map(item -> {
                                                     orderItem.setItem(item);
-                                                    // вычисляем total для позиции
                                                     orderItem.setTotal(item.getPrice().multiply(BigDecimal.valueOf(orderItem.getCount())));
                                                     return orderItem;
                                                 })
@@ -62,7 +110,6 @@ public class OrderController {
                                 .collectList()
                                 .map(items -> {
                                     order.setItems(items);
-                                    // суммарная стоимость заказа
                                     BigDecimal total = items.stream()
                                             .map(OrderItem::getTotal)
                                             .reduce(BigDecimal.ZERO, BigDecimal::add);

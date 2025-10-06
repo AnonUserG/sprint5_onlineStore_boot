@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.openapitools.api.ApiApi;
 import org.openapitools.model.BalanceResponse;
 import org.openapitools.model.PaymentRequest;
@@ -18,7 +17,6 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import ru.practicum.onlineStore.service.PaymentService;
 
-@Slf4j
 @Controller
 @RequestMapping("${openapi.paymentService.base-path:}")
 @RequiredArgsConstructor
@@ -32,7 +30,6 @@ public class PaymentController implements ApiApi {
             @Parameter(name = "accountId", description = "", required = true, in = ParameterIn.PATH) @PathVariable("accountId") String accountId,
             @Parameter(hidden = true) final ServerWebExchange exchange
     ) {
-        log.info("accountId= " + accountId);
         return paymentService.getBalance(accountId)
                 .map(ResponseEntity::ok)
                 .onErrorResume(e ->
