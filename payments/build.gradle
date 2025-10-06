@@ -12,7 +12,9 @@ openApiGenerate {
     library.set("spring-boot")
 
     configOptions = [
-            useJakartaEe: "true"
+            useJakartaEe: "true",
+            reactive: "true",
+            interfaceOnly: "true"
     ]
 }
 sourceSets {
@@ -32,6 +34,7 @@ description = "Payments service"
 
 springBoot {
     buildInfo()
+    mainClass = 'ru.practicum.onlineStore.PaymentApplication'
 }
 
 bootJar {

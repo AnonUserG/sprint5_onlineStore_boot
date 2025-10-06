@@ -25,3 +25,11 @@ services:
     environment:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+
+  payments:
+    build:
+      context: .
+      dockerfile: payments/Dockerfile
+    container_name: payments
+    ports:
+        - "8081:8081"

@@ -1,4 +1,4 @@
-package ru.practicum.onlineStore.service;
+package ru.practicum.onlineStore;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 
 
 import reactor.test.StepVerifier;
+import ru.practicum.onlineStore.service.CartService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

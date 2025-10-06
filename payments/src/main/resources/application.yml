@@ -2,6 +2,9 @@ spring:
   application:
     name: paymentsService
 
+server:
+  port: 8081
+
 management:
   endpoints:
     web:
