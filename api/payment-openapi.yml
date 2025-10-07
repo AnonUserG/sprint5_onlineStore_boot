@@ -5,7 +5,7 @@ info:
   description: API для сервиса платежей
 
 servers:
-  - url: http://localhost:8081
+  - url: http://payments:8081
     description: Local payments service
 
 paths:

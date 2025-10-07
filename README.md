@@ -23,7 +23,3 @@
    docker compose up --build ИЛИ docker-compose up --build
 
 5. Перейди в браузере на [http://localhost:8080/](http://localhost:8080/)
-
-Опционально можно подключиться к запущенному Redis и посмотреть что там лежит командой 'keys *'
-   ```bash
-   docker exec -it redis redis-cli

@@ -63,14 +63,12 @@ public class OrderController {
                     return defaultApi.apiPaymentsPayPost(paymentRequest)
                             .flatMap(paymentResponse -> {
                                 if (Boolean.TRUE.equals(paymentResponse.getSuccess())) {
-                                    // Если оплата прошла - создаем и сохраняем заказ
                                     return orderService.createOrder(Flux.fromIterable(orderItems))
                                             .flatMap(savedOrder ->
                                                     cartService.clear()
                                                             .thenReturn("redirect:/orders/" + savedOrder.getId() + "?newOrder=true")
                                             );
                                 } else {
-                                    // Если оплата не прошла - НЕ создаем заказ
                                     model.addAttribute("errorTitle", "Ошибка оплаты");
                                     model.addAttribute("errorMessage", paymentResponse.getError() != null ? paymentResponse.getError() : "Платеж не прошел");
                                     return Mono.just("error/error");

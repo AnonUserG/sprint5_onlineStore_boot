@@ -11,7 +11,7 @@ public class PaymentApiConfig {
     @Bean
     public DefaultApi defaultApi() {
         ApiClient apiClient = new ApiClient();
-        apiClient.setBasePath("http://localhost:8081");
+        apiClient.setBasePath("http://payments:8081");
         return new DefaultApi(apiClient);
     }
 
