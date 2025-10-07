@@ -1,4 +1,4 @@
-package ru.practicum.onlineStore;
+package ru.practicum.onlineStore.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -15,7 +15,6 @@ import ru.practicum.onlineStore.model.Order;
 import ru.practicum.onlineStore.model.OrderItem;
 import ru.practicum.onlineStore.repository.OrderItemRepository;
 import ru.practicum.onlineStore.repository.OrderRepository;
-import ru.practicum.onlineStore.service.OrderService;
 
 import java.math.BigDecimal;
 import java.util.List;

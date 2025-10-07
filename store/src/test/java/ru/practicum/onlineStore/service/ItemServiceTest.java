@@ -1,4 +1,4 @@
-package ru.practicum.onlineStore;
+package ru.practicum.onlineStore.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -12,7 +12,6 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import ru.practicum.onlineStore.model.Item;
 import ru.practicum.onlineStore.repository.ItemRepository;
-import ru.practicum.onlineStore.service.ItemService;
 
 import static org.mockito.Mockito.*;
 
