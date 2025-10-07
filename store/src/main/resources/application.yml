@@ -35,3 +35,7 @@ info:
   app:
     name: My online store
     version: 1.0.0
+
+payment:
+  service:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8081}

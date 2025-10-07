@@ -3,6 +3,7 @@ package ru.practicum.onlineStore.controller;
 import lombok.RequiredArgsConstructor;
 import org.openapitools.client.api.DefaultApi;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -23,8 +24,12 @@ import java.util.Map;
 public class CartController {
 
     private final CartService cartService;
+
     @Autowired
     private DefaultApi defaultApi;
+
+    @Value("${payment.service.url}")
+    private String paymentServiceUrl;
 
     @GetMapping("/items")
     public Mono<Rendering> showCart() {
@@ -39,7 +44,7 @@ public class CartController {
 
             List<Item> items = cartService.getCart().keySet().stream().toList();
 
-            WebClient webClient = WebClient.create("http://localhost:8081");
+            WebClient webClient = WebClient.create(paymentServiceUrl);
 
             return webClient.get()
                     .uri("/actuator/health")
