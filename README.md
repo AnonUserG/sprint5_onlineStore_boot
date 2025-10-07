@@ -1,6 +1,6 @@
 # Online store
 
-Витрина интернет-магазина на основе Spring Boot, Redis, reactive stack.
+Витрина интернет-магазина на основе Spring Boot, Redis, reactive stack, payment service.
 
 ### 🚀 Как запустить проект на Windows (cmd)
 
@@ -9,7 +9,7 @@
 - Docker
 
 #### 📁 Запуск
-!!! VPN может помешать подняться проекту через compose
+!!! VPN может помешать подняться проекту через docker compose
 
 1. Клонируй ветку multi-project-payments из репозитория используя git bash
    ```bash
