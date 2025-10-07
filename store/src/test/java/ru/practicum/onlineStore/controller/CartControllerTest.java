@@ -3,6 +3,8 @@ package ru.practicum.onlineStore.controller;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.openapitools.client.api.DefaultApi;
+import org.openapitools.client.model.BalanceResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -29,6 +31,9 @@ class CartControllerTest {
 
     @MockitoBean
     private CartService cartService;
+
+    @MockitoBean
+    private DefaultApi defaultApi;
 
     private Item item1;
 
@@ -57,6 +62,19 @@ class CartControllerTest {
     @Test
     @DisplayName("GET /cart/items возвращает страницу корзины с товарами")
     void showCart_ReturnsCartView() {
+        Item item1 = Item.builder().id(1L).title("Кружка").price(BigDecimal.valueOf(100)).build();
+        Map<Item, Integer> cartItems = Map.of(item1, 2);
+        Map<Long, Integer> itemsCount = Map.of(item1.getId(), 2);
+        BigDecimal total = BigDecimal.valueOf(200);
+
+        when(cartService.getCart()).thenReturn(cartItems);
+        when(cartService.getCartItemsCount()).thenReturn(Mono.just(itemsCount));
+        when(cartService.getTotal()).thenReturn(Mono.just(total));
+        when(cartService.isEmpty()).thenReturn(Mono.just(false));
+
+        when(defaultApi.apiPaymentsAccountIdBalanceGet("defaultAccount"))
+                .thenReturn(Mono.just(new BalanceResponse().balance(500.0)));
+
         webTestClient.get()
                 .uri("/cart/items")
                 .exchange()
@@ -64,14 +82,16 @@ class CartControllerTest {
                 .expectBody(String.class)
                 .consumeWith(response ->
                         org.assertj.core.api.Assertions.assertThat(response.getResponseBody())
-                                .contains("cart") // имя вьюхи
-                                .contains("Кружка") // наш товар
+                                .contains("cart")
+                                .contains("Кружка")
                 );
 
         verify(cartService).getCartItemsCount();
         verify(cartService).getTotal();
         verify(cartService).isEmpty();
+        verify(defaultApi).apiPaymentsAccountIdBalanceGet("defaultAccount");
     }
+
 
     @Test
     @DisplayName("POST /cart/items/{id} с action=PLUS")

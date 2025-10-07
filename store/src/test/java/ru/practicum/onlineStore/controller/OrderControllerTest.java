@@ -2,6 +2,9 @@ package ru.practicum.onlineStore.controller;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.openapitools.client.api.DefaultApi;
+import org.openapitools.client.model.PaymentRequest;
+import org.openapitools.client.model.PaymentResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -41,6 +44,9 @@ public class OrderControllerTest {
     @MockitoBean
     private ItemRepository itemRepository;
 
+    @MockitoBean
+    private DefaultApi defaultApi;
+
 
     @Test
     @DisplayName("POST /orders/buy")
@@ -49,6 +55,8 @@ public class OrderControllerTest {
         Order order1 = Order.builder().id(1L).build();
 
         when(cartService.getCart()).thenReturn(Map.of(item1, 2));
+        when(defaultApi.apiPaymentsPayPost(any(PaymentRequest.class)))
+                .thenReturn(Mono.just(new PaymentResponse().success(true)));
         when(orderService.createOrder(any())).thenReturn(Mono.just(order1));
         when(cartService.clear()).thenReturn(Mono.empty());
 
@@ -58,6 +66,7 @@ public class OrderControllerTest {
                 .expectStatus().is3xxRedirection()
                 .expectHeader().valueEquals("Location", "/orders/1?newOrder=true");
 
+        verify(defaultApi).apiPaymentsPayPost(any(PaymentRequest.class));
         verify(orderService).createOrder(any());
         verify(cartService).clear();
     }
