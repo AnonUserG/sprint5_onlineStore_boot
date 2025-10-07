@@ -5,6 +5,7 @@ import org.openapitools.client.api.DefaultApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.result.view.Rendering;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -38,18 +39,43 @@ public class CartController {
 
             List<Item> items = cartService.getCart().keySet().stream().toList();
 
-            return defaultApi.apiPaymentsAccountIdBalanceGet("defaultAccount")
-                    .map(balanceResponse -> {
-                        boolean canBuy = balanceResponse.getBalance().compareTo(total.doubleValue()) >= 0;
+            WebClient webClient = WebClient.create("http://localhost:8081");
 
-                        return Rendering.view("cart")
-                                .modelAttribute("items", items)
-                                .modelAttribute("itemsCount", itemsCount)
-                                .modelAttribute("total", total)
-                                .modelAttribute("empty", empty)
-                                .modelAttribute("balance", balanceResponse.getBalance())
-                                .modelAttribute("canBuy", canBuy)
-                                .build();
+            return webClient.get()
+                    .uri("/actuator/health")
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .map(response -> true)
+                    .onErrorReturn(false)
+                    .flatMap(isAvailable -> {
+                        if (!isAvailable) {
+                            return Mono.just(
+                                    Rendering.view("cart")
+                                            .modelAttribute("items", items)
+                                            .modelAttribute("itemsCount", itemsCount)
+                                            .modelAttribute("total", total)
+                                            .modelAttribute("empty", empty)
+                                            .modelAttribute("balance", BigDecimal.ZERO)
+                                            .modelAttribute("canBuy", false)
+                                            .modelAttribute("paymentServiceAvailable", false)
+                                            .build()
+                            );
+                        }
+
+                        return defaultApi.apiPaymentsAccountIdBalanceGet("defaultAccount")
+                                .map(balanceResponse -> {
+                                    boolean canBuy = balanceResponse.getBalance().compareTo(total.doubleValue()) >= 0;
+
+                                    return Rendering.view("cart")
+                                            .modelAttribute("items", items)
+                                            .modelAttribute("itemsCount", itemsCount)
+                                            .modelAttribute("total", total)
+                                            .modelAttribute("empty", empty)
+                                            .modelAttribute("balance", balanceResponse.getBalance())
+                                            .modelAttribute("canBuy", canBuy)
+                                            .modelAttribute("paymentServiceAvailable", true)
+                                            .build();
+                                });
                     });
         });
     }

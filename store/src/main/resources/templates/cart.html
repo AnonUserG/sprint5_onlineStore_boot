@@ -49,14 +49,20 @@
             <b th:text="'Итого: '+${total}+' руб.'"></b>
         </td>
     </tr>
-    <tr>
-        <td style="text-align:right">
-            <form th:action="@{/orders/buy}" method="post">
-                <button th:disabled="${!canBuy}">Купить</button>
-            </form>
-            <p th:if="${!canBuy}" style="color:red;">Недостаточно средств</p>
-        </td>
-    </tr>
+    <td style="text-align:right">
+        <form th:action="@{/orders/buy}" method="post">
+            <button th:disabled="${!canBuy or !paymentServiceAvailable}">Купить</button>
+        </form>
+
+        <p th:if="${!paymentServiceAvailable}" style="color:red;">
+            Платёжный сервис недоступен
+        </p>
+
+        <p th:if="${paymentServiceAvailable and !canBuy}" style="color:red;">
+            Недостаточно средств
+        </p>
+    </td>
+
 </table>
 </body>
 
