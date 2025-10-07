@@ -1,6 +1,8 @@
 package ru.practicum.onlineStore.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.openapitools.client.api.DefaultApi;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -20,6 +22,8 @@ import java.util.Map;
 public class CartController {
 
     private final CartService cartService;
+    @Autowired
+    private DefaultApi defaultApi;
 
     @GetMapping("/items")
     public Mono<Rendering> showCart() {
@@ -27,19 +31,26 @@ public class CartController {
                 cartService.getCartItemsCount(),
                 cartService.getTotal(),
                 cartService.isEmpty()
-        ).map(tuple -> {
+        ).flatMap(tuple -> {
             Map<Long, Integer> itemsCount = tuple.getT1();
             BigDecimal total = tuple.getT2();
             Boolean empty = tuple.getT3();
 
             List<Item> items = cartService.getCart().keySet().stream().toList();
 
-            return Rendering.view("cart")
-                    .modelAttribute("items", items)
-                    .modelAttribute("itemsCount", itemsCount)
-                    .modelAttribute("total", total)
-                    .modelAttribute("empty", empty)
-                    .build();
+            return defaultApi.apiPaymentsAccountIdBalanceGet("defaultAccount")
+                    .map(balanceResponse -> {
+                        boolean canBuy = balanceResponse.getBalance().compareTo(total.doubleValue()) >= 0;
+
+                        return Rendering.view("cart")
+                                .modelAttribute("items", items)
+                                .modelAttribute("itemsCount", itemsCount)
+                                .modelAttribute("total", total)
+                                .modelAttribute("empty", empty)
+                                .modelAttribute("balance", balanceResponse.getBalance())
+                                .modelAttribute("canBuy", canBuy)
+                                .build();
+                    });
         });
     }
 
