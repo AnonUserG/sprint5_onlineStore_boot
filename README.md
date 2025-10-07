@@ -7,6 +7,7 @@
 #### 📦 Требования
 - Git
 - Docker
+- Порты 8080, 8081, 6379 - должны быть свободны
 
 #### 📁 Запуск
 !!! VPN может помешать подняться проекту через docker compose
@@ -18,7 +19,7 @@
 3. Перейди в папку с проектом
 4. Подними проект используя (тесты прогонятся автоматически)
    ```bash
-   docker compose up --build
+   docker compose up --build ИЛИ docker-compose up --build
 
 5. Перейди в браузере на [http://localhost:8080/](http://localhost:8080/)
 
