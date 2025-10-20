@@ -6,6 +6,7 @@ import org.openapitools.client.api.DefaultApi;
 import org.openapitools.client.model.PaymentRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +31,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @RequestMapping("/orders")
 @Slf4j
+@PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
 public class OrderController {
 
     private final OrderService orderService;
@@ -41,7 +43,7 @@ public class OrderController {
 
     @PostMapping("/buy")
     public Mono<String> buy(Model model) {
-        return Mono.fromSupplier(cartService::getCart)
+        return cartService.getCart()
                 .flatMap(cart -> {
                     List<OrderItem> orderItems = cart.entrySet().stream()
                             .map(e -> OrderItem.builder()

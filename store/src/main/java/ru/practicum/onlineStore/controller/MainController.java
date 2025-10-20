@@ -1,6 +1,7 @@
 package ru.practicum.onlineStore.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.result.view.Rendering;
@@ -77,6 +78,7 @@ public class MainController {
     }
 
     @PostMapping("/main/items/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
     public Mono<Rendering> updateCartFromMain(@PathVariable Long id, ServerWebExchange exchange) {
         return exchange.getFormData()
                 .flatMap(formData -> {
@@ -111,6 +113,7 @@ public class MainController {
     }
 
     @PostMapping("/items/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
     public Mono<String> updateCartFromItem(@PathVariable Long id, ServerWebExchange exchange) {
         return exchange.getFormData()
                 .flatMap(formData -> {

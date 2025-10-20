@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.openapitools.client.api.DefaultApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -14,6 +15,7 @@ import ru.practicum.onlineStore.model.Item;
 import ru.practicum.onlineStore.service.CartService;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +23,7 @@ import java.util.Map;
 @Controller
 @RequiredArgsConstructor
 @RequestMapping("/cart")
+@PreAuthorize("hasAnyRole('ADMIN', 'CUSTOMER')")
 public class CartController {
 
     private final CartService cartService;
@@ -36,13 +39,15 @@ public class CartController {
         return Mono.zip(
                 cartService.getCartItemsCount(),
                 cartService.getTotal(),
-                cartService.isEmpty()
+                cartService.isEmpty(),
+                cartService.getCart()
         ).flatMap(tuple -> {
             Map<Long, Integer> itemsCount = tuple.getT1();
             BigDecimal total = tuple.getT2();
             Boolean empty = tuple.getT3();
+            Map<Item, Integer> cart = tuple.getT4();
 
-            List<Item> items = cartService.getCart().keySet().stream().toList();
+            List<Item> items = new ArrayList<>(cart.keySet());
 
             WebClient webClient = WebClient.create(paymentServiceUrl);
 
@@ -92,19 +97,25 @@ public class CartController {
                     String action = formData.getFirst("action");
                     if (action == null) return Mono.just("redirect:/cart/items");
 
-                    return Mono.defer(() ->
-                            cartService.getCart().keySet().stream()
-                                    .filter(item -> item.getId().equals(id))
-                                    .findFirst()
-                                    .map(item -> switch (action.toLowerCase()) {
-                                        case "plus" -> cartService.addItem(item);
-                                        case "minus" -> cartService.removeOne(item);
-                                        case "delete" -> cartService.deleteItem(item);
-                                        default -> Mono.empty();
-                                    })
-                                    .orElse(Mono.empty())
-                    ).then(Mono.just("redirect:/cart/items"));
+                    return cartService.getCart() // Mono<Map<Item,Integer>>
+                            .flatMap(cart -> {
+                                // находим нужный Item по id
+                                return cart.keySet().stream()
+                                        .filter(item -> item.getId().equals(id))
+                                        .findFirst()
+                                        .map(item -> {
+                                            switch (action.toLowerCase()) {
+                                                case "plus" -> { return cartService.addItem(item); }
+                                                case "minus" -> { return cartService.removeOne(item); }
+                                                case "delete" -> { return cartService.deleteItem(item); }
+                                                default -> { return Mono.empty(); }
+                                            }
+                                        })
+                                        .orElse(Mono.empty())
+                                        .then(Mono.just("redirect:/cart/items")); // редирект после действия
+                            });
                 });
     }
+
 }
 

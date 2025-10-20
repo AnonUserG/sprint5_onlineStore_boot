@@ -1,6 +1,7 @@
 package ru.practicum.onlineStore.service;
 
 import lombok.Getter;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import ru.practicum.onlineStore.model.Item;
@@ -13,46 +14,75 @@ import java.util.stream.Collectors;
 @Service
 public class CartService {
 
-    @Getter
-    private final Map<Item, Integer> cart = new ConcurrentHashMap<>();
+    private final Map<String, Map<Item, Integer>> carts = new ConcurrentHashMap<>();
+
+    private Mono<String> getCurrentUser() {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> ctx.getAuthentication().getName())
+                .defaultIfEmpty("ANON");
+    }
 
     public Mono<Void> addItem(Item item) {
-        return Mono.fromRunnable(() -> cart.merge(item, 1, Integer::sum));
+        return getCurrentUser().doOnNext(user ->
+                carts.computeIfAbsent(user, u -> new ConcurrentHashMap<>())
+                        .merge(item, 1, Integer::sum)
+        ).then();
     }
 
     public Mono<Void> removeOne(Item item) {
-        return Mono.fromRunnable(() -> {
-            cart.computeIfPresent(item, (k, v) -> (v > 1) ? v - 1 : null);
-        });
+        return getCurrentUser().doOnNext(user -> {
+            Map<Item, Integer> cart = carts.get(user);
+            if (cart != null) {
+                cart.computeIfPresent(item, (k, v) -> v > 1 ? v - 1 : null);
+            }
+        }).then();
     }
 
-    public  Mono<Void> deleteItem(Item item) {
-        return Mono.fromRunnable(() -> cart.remove(item));
+    public Mono<Void> deleteItem(Item item) {
+        return getCurrentUser().doOnNext(user -> {
+            Map<Item, Integer> cart = carts.get(user);
+            if (cart != null) {
+                cart.remove(item);
+            }
+        }).then();
     }
 
-    public  Mono<Void> clear() {
-        return Mono.fromRunnable(cart::clear);
+    public Mono<Void> clear() {
+        return getCurrentUser().doOnNext(user -> carts.remove(user)).then();
     }
 
     public Mono<BigDecimal> getTotal() {
-        return Mono.fromSupplier(() ->
-                cart.entrySet().stream()
-                        .map(entry -> entry.getKey().getPrice().multiply(BigDecimal.valueOf(entry.getValue())))
+        return getCurrentUser().map(user ->
+                carts.getOrDefault(user, Map.of())
+                        .entrySet()
+                        .stream()
+                        .map(e -> e.getKey().getPrice().multiply(BigDecimal.valueOf(e.getValue())))
                         .reduce(BigDecimal.ZERO, BigDecimal::add)
         );
     }
 
     public Mono<Boolean> isEmpty() {
-        return Mono.fromSupplier(cart::isEmpty);
+        return getCurrentUser().map(user -> {
+            Map<Item, Integer> cart = carts.get(user);
+            return cart == null || cart.isEmpty();
+        });
     }
 
     public Mono<Map<Long, Integer>> getCartItemsCount() {
-        return Mono.fromSupplier(() ->
-                cart.entrySet().stream()
+        return getCurrentUser().map(user ->
+                carts.getOrDefault(user, Map.of())
+                        .entrySet()
+                        .stream()
                         .collect(Collectors.toMap(
                                 e -> e.getKey().getId(),
                                 Map.Entry::getValue
                         ))
+        );
+    }
+
+    public Mono<Map<Item, Integer>> getCart() {
+        return getCurrentUser().map(user ->
+                carts.getOrDefault(user, Map.of())
         );
     }
 }

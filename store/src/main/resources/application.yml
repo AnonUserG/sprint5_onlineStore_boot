@@ -1,6 +1,22 @@
 spring:
   application:
     name: onlineStore
+  output:
+    ansi:
+      enabled: ALWAYS
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: store-client
+            authorization-grant-type: authorization_code
+            scope: openid, profile, email
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+        provider:
+          keycloak:
+           issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:9090/realms/store-realm}
 
   r2dbc:
     url: r2dbc:h2:mem:///mydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE

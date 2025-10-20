@@ -31,5 +31,5 @@ WORKDIR /app
 # Копируем только готовый jar из builder
 COPY --from=builder /app/store/build/libs/onlineStore_boot.jar app.jar
 
-EXPOSE 8080
+EXPOSE 8075
 ENTRYPOINT ["java", "-jar", "app.jar"]
