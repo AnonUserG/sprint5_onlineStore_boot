@@ -14,6 +14,12 @@ spring:
             authorization-grant-type: authorization_code
             scope: openid, profile, email
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+          payments:
+            provider: keycloak
+            client-id: payments-api
+            client-secret: payments-secret
+            authorization-grant-type: client_credentials
+            scope: openid
         provider:
           keycloak:
            issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:9090/realms/store-realm}

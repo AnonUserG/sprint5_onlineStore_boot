@@ -20,8 +20,7 @@
       "rootUrl": "http://localhost:8075",
       "redirectUris": ["http://localhost:8080/*",
                        "http://localhost:8075/*",
-                       "http://store:8075/*",
-                       "http://store:8080/*"],
+                       "http://127.0.0.1:8075/*"],
       "webOrigins": ["+"],
       "publicClient": true,
       "protocol": "openid-connect",
@@ -53,7 +52,19 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "payments-api",
+      "name": "Payments API",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "secret": "payments-secret",
+      "authorizationServicesEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "standardFlowEnabled": false
     }
+
   ],
   "users": [
     {

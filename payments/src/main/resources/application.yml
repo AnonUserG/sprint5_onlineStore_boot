@@ -1,7 +1,11 @@
 spring:
   application:
     name: paymentsService
-
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:9090/realms/store-realm}
 server:
   port: 8081
 

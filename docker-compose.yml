@@ -41,6 +41,8 @@ services:
         - "8081:8081"
     depends_on:
       - keycloak
+    environment:
+      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/store-realm
     networks:
       - store-network
 
