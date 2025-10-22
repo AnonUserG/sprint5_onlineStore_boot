@@ -22,7 +22,10 @@ spring:
             scope: openid
         provider:
           keycloak:
-           issuer-uri: ${OAUTH2_ISSUER_URI:http://localhost:9090/realms/store-realm}
+            authorization-uri: ${OAUTH2_AUTHORIZATION_URI:http://localhost:9090/realms/store-realm/protocol/openid-connect/auth}
+            token-uri: ${OAUTH2_TOKEN_URI:http://localhost:9090/realms/store-realm/protocol/openid-connect/token}
+            user-info-uri: ${OAUTH2_USER_INFO_URI:http://localhost:9090/realms/store-realm/protocol/openid-connect/userinfo}
+            jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://localhost:9090/realms/store-realm/protocol/openid-connect/certs}
 
   r2dbc:
     url: r2dbc:h2:mem:///mydb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE

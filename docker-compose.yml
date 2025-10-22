@@ -25,10 +25,15 @@ services:
       redis:
         condition: service_healthy
     environment:
-      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/store-realm
+      OAUTH2_AUTHORIZATION_URI: http://localhost:9090/realms/store-realm/protocol/openid-connect/auth
+      OAUTH2_TOKEN_URI: http://host.docker.internal:9090/realms/store-realm/protocol/openid-connect/token
+      OAUTH2_USER_INFO_URI: http://host.docker.internal:9090/realms/store-realm/protocol/openid-connect/userinfo
+      OAUTH2_JWK_SET_URI: http://host.docker.internal:9090/realms/store-realm/protocol/openid-connect/certs
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       PAYMENT_SERVICE_URL: http://payments:8081
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - store-network
 
@@ -42,7 +47,9 @@ services:
     depends_on:
       - keycloak
     environment:
-      OAUTH2_ISSUER_URI: http://keycloak:8080/realms/store-realm
+      OAUTH2_JWK_SET_URI: http://host.docker.internal:9090/realms/store-realm/protocol/openid-connect/certs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - store-network
 
@@ -54,6 +61,10 @@ services:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       KC_DB: dev-mem
+      KC_HOSTNAME_URL: http://localhost:9090
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_PROXY: edge
     command:
       - start-dev
       - --import-realm
